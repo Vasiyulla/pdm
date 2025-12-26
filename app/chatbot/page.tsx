@@ -1,423 +1,383 @@
 "use client"
 
-import { Navbar } from "@/components/navbar"
-import { useState, useRef, useEffect } from "react"
-import { Send, Loader2, Globe } from "lucide-react"
+import { useState } from "react"
+import { Loader2, Send, Globe } from "lucide-react"
 
-interface Message {
-  id: string
-  type: "user" | "assistant"
-  content: string
-  timestamp: Date
-}
-
-type Language = "en" | "es" | "fr" | "de" | "zh" | "ar" | "ja" | "pt"
-
-const translations: Record<Language, any> = {
+const languages = {
   en: {
-    title: "AI Maintenance Assistant",
-    description: "Ask questions about your equipment, maintenance schedules, and predictive insights",
-    greeting:
-      "Hello! I'm your AI Maintenance Assistant. I can help you with equipment diagnostics, maintenance scheduling, and predictive insights. What would you like to know?",
-    suggestedQuestions: "Suggested questions:",
-    placeholder: "Ask about equipment status, maintenance, or predictions...",
-    thinking: "Thinking...",
-    sampleQuestions: [
-      "What is the current equipment health status?",
-      "When is the next scheduled maintenance?",
-      "Explain the recent anomaly detected",
+    title: "Maintenance Assistant",
+    description: "Chat with our AI assistant about machine maintenance",
+    greeting: "Hello! How can I help you with your machine maintenance today?",
+    placeholder: "Type your message...",
+    questions: [
+      "What is the current health status of my machines?",
+      "When should I schedule the next maintenance?",
+      "Analyze recent anomalies in equipment",
       "How can I improve equipment efficiency?",
     ],
     responses: {
-      health:
-        "Current system health is at 94%. All major components are operating within normal parameters. Motor A and B are performing optimally, and the bearing assembly shows a minor increase in temperature that should be monitored.",
-      maintenance:
-        "Based on predictive analysis, the next scheduled maintenance is due in 3 days for the Gearbox. The Drive Belt should be inspected during the same service window. I recommend scheduling this during the next available maintenance window.",
-      anomaly:
-        "The recent anomaly detected was a temporary vibration spike in the Gearbox assembly at 14:32 today. This has been classified as a minor anomaly with a 2% probability of indicating a future failure. Continued monitoring is recommended.",
+      health: "Current health status: All machines operating normally with 98% efficiency.",
+      maintenance: "Next scheduled maintenance: 15 days for Equipment A, 8 days for Equipment B.",
+      anomaly: "Detected minor vibration anomaly in Motor C. Recommended inspection within 7 days.",
       efficiency:
-        "To improve equipment efficiency: 1) Reduce idle time by optimizing scheduling, 2) Ensure regular lubrication of bearing assemblies, 3) Monitor temperature trends and maintain cooling systems, 4) Update calibration parameters monthly.",
+        "To improve efficiency: reduce idle time by 15%, optimize temperature settings, and perform preventive maintenance weekly.",
       default:
-        "That's a great question about equipment maintenance and diagnostics. Based on our current data, I can provide specific insights about your equipment status, predict maintenance needs, and recommend optimization strategies. What specific aspect would you like to explore?",
+        "I'm here to help with any maintenance questions. Feel free to ask about equipment status, scheduling, or optimization tips.",
     },
   },
-  es: {
-    title: "Asistente de Mantenimiento IA",
-    description: "Haga preguntas sobre su equipo, cronogramas de mantenimiento e información predictiva",
-    greeting:
-      "¡Hola! Soy tu Asistente de Mantenimiento IA. Puedo ayudarte con diagnósticos de equipos, programación de mantenimiento e información predictiva. ¿Qué te gustaría saber?",
-    suggestedQuestions: "Preguntas sugeridas:",
-    placeholder: "Pregunta sobre el estado del equipo, mantenimiento o predicciones...",
-    thinking: "Pensando...",
-    sampleQuestions: [
-      "¿Cuál es el estado actual de la salud del equipo?",
-      "¿Cuándo está programado el próximo mantenimiento?",
-      "Explicar la anomalía detectada recientemente",
-      "¿Cómo puedo mejorar la eficiencia del equipo?",
+  hi: {
+    title: "रखरखाव सहायक",
+    description: "मशीन रखरखाव के बारे में हमारे AI सहायक से बात करें",
+    greeting: "नमस्ते! आज मैं आपकी मशीन रखरखाव में आपकी कैसे मदद कर सकता हूँ?",
+    placeholder: "अपना संदेश लिखें...",
+    questions: [
+      "मेरी मशीनों की वर्तमान स्वास्थ्य स्थिति क्या है?",
+      "मुझे अगली रखरखाव कब शुरू करनी चाहिए?",
+      "उपकरण में हाल की असामान्यताओं का विश्लेषण करें",
+      "मैं उपकरण की दक्षता कैसे बढ़ा सकता हूँ?",
     ],
     responses: {
-      health:
-        "La salud del sistema actual es del 94%. Todos los componentes principales funcionan dentro de los parámetros normales. Los motores A y B funcionan óptimamente, y el conjunto de cojinetes muestra un ligero aumento de temperatura que debe monitorearse.",
-      maintenance:
-        "Basado en análisis predictivos, el próximo mantenimiento programado vence en 3 días para la Caja de Cambios. La Correa de Transmisión debe inspeccionarse durante la misma ventana de servicio. Recomiendo programar esto durante la próxima ventana de mantenimiento disponible.",
-      anomaly:
-        "La anomalía detectada recientemente fue un pico temporal de vibración en el conjunto de la Caja de Cambios a las 14:32 hoy. Se ha clasificado como una anomalía menor con una probabilidad del 2% de indicar una falla futura. Se recomienda monitoreo continuo.",
+      health: "वर्तमान स्वास्थ्य स्थिति: सभी मशीनें 98% दक्षता के साथ सामान्य रूप से काम कर रही हैं।",
+      maintenance: "अगली निर्धारित रखरखाव: उपकरण A के लिए 15 दिन, उपकरण B के लिए 8 दिन।",
+      anomaly: "मोटर C में मामूली कंपन विसंगति का पता चला। 7 दिनों के भीतर निरीक्षण की सिफारिश की जाती है।",
       efficiency:
-        "Para mejorar la eficiencia del equipo: 1) Reducir el tiempo de inactividad optimizando la programación, 2) Garantizar lubricación regular de conjuntos de cojinetes, 3) Monitorear tendencias de temperatura y mantener sistemas de enfriamiento, 4) Actualizar parámetros de calibración mensualmente.",
-      default:
-        "Esa es una excelente pregunta sobre mantenimiento y diagnóstico de equipos. Basado en nuestros datos actuales, puedo proporcionar información específica sobre el estado de su equipo, predecir necesidades de mantenimiento y recomendar estrategias de optimización. ¿Qué aspecto específico desea explorar?",
+        "दक्षता में सुधार के लिए: निष्क्रिय समय को 15% कम करें, तापमान सेटिंग्स को अनुकूलित करें, और साप्ताहिक रोकथाम रखरखाव करें।",
+      default: "मैं रखरखाव के किसी भी प्रश्न में आपकी मदद के लिए यहाँ हूँ। उपकरण स्थिति, शेड्यूलिंग, या अनुकूलन सुझावों के बारे में बेझिझक पूछें।",
     },
   },
-  fr: {
-    title: "Assistant de Maintenance IA",
-    description: "Posez des questions sur votre équipement, les calendriers de maintenance et les prévisions",
-    greeting:
-      "Bonjour! Je suis votre Assistant de Maintenance IA. Je peux vous aider avec les diagnostics d'équipement, la planification de la maintenance et les prévisions. Que souhaitez-vous savoir?",
-    suggestedQuestions: "Questions suggérées:",
-    placeholder: "Posez des questions sur l'état de l'équipement, la maintenance ou les prévisions...",
-    thinking: "Réflexion...",
-    sampleQuestions: [
-      "Quel est l'état actuel de la santé de l'équipement?",
-      "Quand est prévue la prochaine maintenance?",
-      "Expliquez l'anomalie détectée récemment",
-      "Comment puis-je améliorer l'efficacité de l'équipement?",
+  ta: {
+    title: "பராமரிப்பு உதவியாளர்",
+    description: "இயந்திர பராமரிப்பு பற்றி எங்கள் AI உதவியாளருடன் பேசுங்கள்",
+    greeting: "வணக்கம்! இன்று உங்கள் இயந்திர பராமரிப்பில் நான் உதவ முடியுமா?",
+    placeholder: "உங்கள் செய்தியை வகையிடவும்...",
+    questions: [
+      "எனது இயந்திரங்களின் தற்போதைய ஆரோக்கிய நிலை என்ன?",
+      "அடுத்த பராமரிப்பை எப்போது திட்டமிட வேண்டும்?",
+      "சமீபத்திய உபகரண வேறுபாடுகளை பகுப்பாய்வு செய்",
+      "நான் உபகரண செயல்திறனை எவ்வாறு மேம்படுத்தலாம்?",
     ],
     responses: {
-      health:
-        "L'état actuel de la santé du système est de 94%. Tous les composants principaux fonctionnent dans les paramètres normaux. Les moteurs A et B fonctionnent de manière optimale, et l'assemblage des roulements montre une légère augmentation de température qui doit être surveillée.",
-      maintenance:
-        "Sur la base de l'analyse prédictive, la prochaine maintenance prévue est due dans 3 jours pour la Boîte de Vitesses. La Courroie d'Entraînement doit être inspectée lors de la même fenêtre d'entretien. Je recommande de programmer cela au cours de la prochaine fenêtre de maintenance disponible.",
-      anomaly:
-        "L'anomalie détectée récemment était une pointe temporaire de vibration dans l'assemblage de la Boîte de Vitesses à 14h32 aujourd'hui. Cela a été classé comme une anomalie mineure avec une probabilité de 2% d'indiquer une défaillance future. Une surveillance continue est recommandée.",
+      health: "தற்போதைய ஆரோக்கிய நிலை: அனைத்து இயந்திரங்களும் 98% திறன்மையுடன் சாதாரணமாக செயல்பட்டுக்கொண்டுள்ளன.",
+      maintenance: "அடுத்த திட்டமிட்ட பராமரிப்பு: உபகரணம் A க்கு 15 நாட்கள், உபகரணம் B க்கு 8 நாட்கள்.",
+      anomaly: "மோட்டார் C இல் சிறிய அதிர்வன்து வேறுபாடு கண்டுபிடிக்கப்பட்டுள்ளது। 7 நாட்களுக்குள் ஆய்வு பரிந்துரைக்கப்படுகிறது.",
       efficiency:
-        "Pour améliorer l'efficacité de l'équipement: 1) Réduire les temps d'arrêt en optimisant la planification, 2) Assurer une lubrification régulière des assemblages de roulements, 3) Surveiller les tendances de température et maintenir les systèmes de refroidissement, 4) Mettre à jour les paramètres d'étalonnage mensuellement.",
+        "திறன்மையை மேம்படுத்த: செயலற்ற நேரத்தை 15% குறைக்கவும், வெப்பநிலை அமைப்புகளை உகந்த செய்யவும், மற்றும் வாரந்தோறும் தடுப்பு பராமரிப்பு செய்யவும்.",
       default:
-        "C'est une excellente question sur la maintenance et le diagnostic des équipements. Sur la base de nos données actuelles, je peux fournir des informations spécifiques sur l'état de votre équipement, prévoir les besoins de maintenance et recommander des stratégies d'optimisation. Quel aspect spécifique souhaitez-vous explorer?",
+        "நான் பராமரிப்பு பற்றிய எந்த கேள்விகளிலும் உதவ இங்கே இருக்கிறேன்। உபகரணம் நிலை, திட்டமிடல், அல்லது உகந்த மாக்கள் பற்றி சுதந்திரமாக கேளுங்கள்.",
     },
   },
-  de: {
-    title: "KI-Wartungsassistent",
-    description: "Stellen Sie Fragen zu Ihrer Ausrüstung, Wartungsplänen und Vorhersageerkenntnissen",
-    greeting:
-      "Hallo! Ich bin Ihr KI-Wartungsassistent. Ich kann Ihnen bei Gerätedustrie, Wartungsplanung und Vorhersageanalysen helfen. Was möchten Sie wissen?",
-    suggestedQuestions: "Vorgeschlagene Fragen:",
-    placeholder: "Fragen Sie nach Gerätestatus, Wartung oder Vorhersagen...",
-    thinking: "Denke nach...",
-    sampleQuestions: [
-      "Wie ist der aktuelle Gesundheitsstatus des Geräts?",
-      "Wann ist die nächste geplante Wartung fällig?",
-      "Erklären Sie die kürzlich erkannte Anomalie",
-      "Wie kann ich die Geräteeffizienz verbessern?",
+  te: {
+    title: "నిర్వహణ సహాయకుడు",
+    description: "యంత్ర నిర్వహణ గురించి మా AI సహాయకుడితో చాట్ చేయండి",
+    greeting: "నమస్కారం! ఈరోజు మీ యంత్ర నిర్వహణలో నేను మీకు ఎలా సహాయం చేయగలను?",
+    placeholder: "మీ సందేశం టైప్ చేయండి...",
+    questions: [
+      "నా యంత్రాల ప్రస్తుత ఆరోగ్య స్థితి ఏమిటి?",
+      "తరువాతి నిర్వహణను ఎప్పుడు షెడ్యూల్ చేయాలి?",
+      "ఆधారమైన సమీకరణలలో సమీపకాలీన తుపాకులను విశ్లేషించండి",
+      "నేను సామగ్రి సామర్థ్యాన్ని ఎలా మెച్చుకోవచ్చు?",
     ],
     responses: {
-      health:
-        "Der aktuelle Systemgesundheitsstatus liegt bei 94%. Alle Hauptkomponenten arbeiten innerhalb normaler Parameter. Motor A und B funktionieren optimal, und die Lagergruppe zeigt einen leichten Temperaturanstieg, der überwacht werden sollte.",
-      maintenance:
-        "Basierend auf Vorhersageanalysen ist die nächste geplante Wartung in 3 Tagen für das Getriebe fällig. Der Antriebsriemen sollte während des gleichen Wartungsfensters überprüft werden. Ich empfehle, dies während des nächsten verfügbaren Wartungsfensters einzuplanen.",
-      anomaly:
-        "Die kürzlich erkannte Anomalie war eine vorübergehende Vibrationsspitze in der Getriebegruppe um 14:32 Uhr heute. Dies wurde als eine kleinere Anomalie mit einer Wahrscheinlichkeit von 2% für einen künftigen Ausfall eingestuft. Kontinuierliche Überwachung wird empfohlen.",
+      health: "ప్రస్తుత ఆరోగ్య స్థితి: అన్ని యంత్రాలు 98% కార్యક్షమతతో సాధారణంగా పనిచేస్తున్నాయి.",
+      maintenance: "తరువాతి షెడ్యూల్ చేసిన నిర్వహణ: సామగ్రి A కు 15 రోజులు, సామగ్రి B కు 8 రోజులు.",
+      anomaly: "మోటర్ C లో చిన్న కంపనం విసంగతి కనుగొనబడింది. 7 రోజులలో తనిఖీ సిఫారసు చేయబడుతుంది.",
       efficiency:
-        "Um die Geräteeffizienz zu verbessern: 1) Reduzieren Sie Ausfallzeiten durch Optimierung der Planung, 2) Stellen Sie regelmäßige Schmierung von Lagergruppen sicher, 3) Überwachen Sie Temperaturtrends und halten Sie Kühlsysteme gewartet, 4) Aktualisieren Sie Kalibrierparameter monatlich.",
+        "సామర్థ్యాన్ని మెరుగుపరచడానికి: నిష్క్రియ సమయాన్ని 15% తగ్గించండి, ఉష్ణోగ్రత సెట్టింగ్‌లను ఆప్టిమైజ్ చేయండి, మరియు సాప్తాహిక నిరోధక నిర్వహణ చేయండి.",
       default:
-        "Das ist eine großartige Frage zu Gerätewartung und -diagnose. Basierend auf unseren aktuellen Daten kann ich spezifische Einblicke zum Status Ihrer Ausrüstung geben, Wartungsanforderungen vorhersagen und Optimierungsstrategien empfehlen. Welchen spezifischen Aspekt möchten Sie erkunden?",
+        "నిర్వహణ గురించిన ఏదైనా ప్రశ్నలకు సహాయం చేయడానికి నేను ఇక్కడ ఉన్నాను. సామగ్రి స్థితి, షెడ్యూలింగ్, లేదా ఆప్టిమైజేషన్ చిట్కాల గురించి సంకోచం లేకుండా అడగండి.",
     },
   },
-  zh: {
-    title: "人工智能维护助手",
-    description: "提出关于您的设备、维护时间表和预测见解的问题",
-    greeting: "您好！我是您的人工智能维护助手。我可以帮助您进行设备诊断、维护计划和预测分析。您想了解什么？",
-    suggestedQuestions: "建议的问题:",
-    placeholder: "询问设备状态、维护或预测...",
-    thinking: "思考中...",
-    sampleQuestions: [
-      "当前设备健康状态如何？",
-      "下一次定期维护何时进行？",
-      "解释最近检测到的异常",
-      "我如何改进设备效率？",
+  kn: {
+    title: "ನಿರ್ವಹಣೆ ಸಹಾಯಕ",
+    description: "ಯಂತ್ರ ನಿರ್ವಹಣೆ ಬಗ್ಗೆ ನಮ್ಮ AI ಸಹಾಯಕರೊಂದಿಗೆ ಚಾಟ್ ಮಾಡಿ",
+    greeting: "ನಮಸ್ಕಾರ! ಇಂದು ನಿಮ್ಮ ಯಂತ್ರ ನಿರ್ವಹಣೆಯಲ್ಲಿ ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?",
+    placeholder: "ನಿಮ್ಮ ಸಂದೇಶವನ್ನು ಟೈಪ್ ಮಾಡಿ...",
+    questions: [
+      "ನನ್ನ ಯಂತ್ರಗಳ ಪ್ರಸ್ತುತ ಆರೋಗ್ಯ ಸ್ಥಿತಿ ಏನು?",
+      "ನಾನು ಮುಂದಿನ ನಿರ್ವಹಣೆಯನ್ನು ಯಾವಾಗ ನಿಗದಿ ಮಾಡಬೇಕು?",
+      "ಇತ್ತೀಚಿನ ಸಾಧನ ವಿಶೇಷತೆಗಳನ್ನು ವಿಶ್ಲೇಷಿಸಿ",
+      "ನಾನು ಸಾಧನ ದಕ್ಷತೆಯನ್ನು ಹೇಗೆ ಸುಧಾರಿಸಬಹುದು?",
     ],
     responses: {
-      health:
-        "当前系统健康状态为94%。所有主要组件均在正常参数范围内运行。电动机A和B运行最优，轴承组件显示轻微温度升高，应继续监测。",
-      maintenance:
-        "根据预测分析，下一次定期维护将在3天后对齿轮箱进行。驱动带应在同一服务窗口期间进行检查。我建议在下一个可用的维护窗口期间安排此操作。",
-      anomaly:
-        "最近检测到的异常是今天14:32在齿轮箱组件中出现的临时振动峰值。这已被分类为轻微异常，有2%的概率表示未来可能发生故障。建议继续监测。",
+      health: "ಪ್ರಸ್ತುತ ಆರೋಗ್ಯ ಸ್ಥಿತಿ: ಎಲ್ಲಾ ಯಂತ್ರಗಳು 98% ದಕ್ಷತೆಯೊಂದಿಗೆ ಸಾಮಾನ್ಯವಾಗಿ ಕಾರ್ಯ ನಿರ್ವಹಿಸುತ್ತಿವೆ.",
+      maintenance: "ಮುಂದಿನ ನಿಗದಿತ ನಿರ್ವಹಣೆ: ಸಾಧನ A ಗೆ 15 ದಿನಗಳು, ಸಾಧನ B ಗೆ 8 ದಿನಗಳು.",
+      anomaly: "ಮೋಟರ್ C ನಲ್ಲಿ ಸಣ್ಣ ಕಂಪನ ವಿಸಂಗತಿ ಕಂಡುಬಂದಿದೆ. 7 ದಿನಗಳಲ್ಲಿ ತಪಾಸಣೆ ಶಿಫಾರಸು ಮಾಡಲಾಗುತ್ತಿದೆ.",
       efficiency:
-        "要改进设备效率：1)通过优化调度减少闲置时间，2)确保轴承组件的定期润滑，3)监测温度趋势并维护冷却系统，4)每月更新校准参数。",
+        "ದಕ್ಷತೆಯನ್ನು ಸುಧಾರಿಸಲು: ನಿಷ್ಕ್ರಿಯ ಸಮಯವನ್ನು 15% ಕಡಿಮೆ ಮಾಡಿ, ಉಷ್ಣತೆ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಉತ್ತಮಗೊಳಿಸಿ, ಮತ್ತು ಸಾಪ್ತಾಹಿಕ ತಡೆಗಟ್ಟುವ ನಿರ್ವಹಣೆ ನಿರ್ವಹಿಸಿ.",
       default:
-        "这是关于设备维护和诊断的很好的问题。根据我们当前的数据，我可以提供有关您的设备状态的具体见解、预测维护需求并推荐优化策略。您想探索哪个具体方面？",
+        "ನಿರ್ವಹಣೆ ಬಗ್ಗೆ ಯಾವುದೇ ಪ್ರಶ್ನೆಗಳಿಗೆ ಸಹಾಯ ಮಾಡಲು ನಾನು ಇಲ್ಲಿದ್ದೇನೆ. ಸಾಧನ ಸ್ಥಿತಿ, ವೇಳಾಪಟ್ಟಿ, ಅಥವಾ ಆಪ್ಟಿಮೈಜೇಶನ್ ಸುಳಿವುಗಳ ಬಗ್ಗೆ ಸ್ವತಂತ್ರವಾಗಿ ಕೇಳಿ.",
     },
   },
-  ar: {
-    title: "مساعد الصيانة بالذكاء الاصطناعي",
-    description: "اطرح أسئلة حول معدتك وجداول الصيانة والرؤى التنبؤية",
-    greeting:
-      "مرحبا! أنا مساعد الصيانة بالذكاء الاصطناعي. يمكنني مساعدتك في تشخيص المعدات وجدولة الصيانة والرؤى التنبؤية. ماذا تود أن تعرف؟",
-    suggestedQuestions: "الأسئلة المقترحة:",
-    placeholder: "اسأل عن حالة المعدات أو الصيانة أو التنبؤات...",
-    thinking: "جاري التفكير...",
-    sampleQuestions: [
-      "ما هي حالة صحة المعدات الحالية؟",
-      "متى موعد الصيانة المجدولة التالية؟",
-      "شرح الشذوذ المكتشف مؤخرا",
-      "كيف يمكنني تحسين كفاءة المعدات؟",
+  ml: {
+    title: "പരിപാലനം സഹായി",
+    description: "മെഷീൻ പരിപാലനത്തെക്കുറിച്ച് ഞങ്ങളുടെ AI സഹായിയുമായി സംസാരിക്കുക",
+    greeting: "നമസ്കാരം! ഇന്ന് നിങ്ങളുടെ മെഷീൻ പരിപാലനത്തിൽ ഞാൻ എങ്ങനെ സാഹായ്യം ചെയ്യാൻ കഴിയും?",
+    placeholder: "നിങ്ങളുടെ സന്ദേശം ടൈപ്പ് ചെയ്യുക...",
+    questions: [
+      "എന്റെ മെഷീനുകളുടെ നിലവിലെ ആരോഗ്യ നിലവാരം എന്താണ്?",
+      "ഞാൻ അടുത്ത പരിപാലനം എപ്പോൾ ഷെഡ്യൂൾ ചെയ്യണം?",
+      "സമീപകാല ഉപകരണ അസാധാരണതകൾ വിശകലനം ചെയ്യുക",
+      "ഞാൻ ഉപകരണ കാര്യക്ഷമത എങ്ങനെ മെച്ചപ്പെടുത്താൻ കഴിയും?",
     ],
     responses: {
-      health:
-        "حالة صحة النظام الحالية 94٪. جميع المكونات الرئيسية تعمل ضمن المعاملات الطبيعية. المحرك أ والمحرك ب يعملان بشكل مثالي، وتجميع المحمل يظهر ارتفاعا طفيفا في درجة الحرارة يجب مراقبته.",
-      maintenance:
-        "استنادا إلى التحليل التنبؤي، من المقرر إجراء الصيانة المجدولة التالية خلال 3 أيام لصندوق التروس. يجب فحص حزام القيادة أثناء نفس نافذة الخدمة. أوصي بجدولة هذا خلال نافذة الصيانة المتاحة التالية.",
-      anomaly:
-        "الشذوذ المكتشف مؤخرا كان ارتفاعا مؤقتا للاهتزاز في تجميع صندوق التروس في الساعة 14:32 اليوم. تم تصنيفه على أنه شذوذ طفيف باحتمالية 2٪ للإشارة إلى فشل مستقبلي. يوصى بمراقبة مستمرة.",
+      health: "നിലവിലെ ആരോഗ്യ നിലവാരം: എല്ലാ മെഷീനുകളും 98% ദക്ഷതയോടെ സാധാരണമായി പ്രവർത്തിക്കുന്നു.",
+      maintenance: "അടുത്ത ഷെഡ്യൂൾ ചെയ്ത പരിപാലനം: ഉപകരണം A ന് 15 ദിവസം, ഉപകരണം B ന് 8 ദിവസം.",
+      anomaly: "മോട്ടോർ C ൽ ചെറിയ വൈബ്രേഷൻ അപ്സാധാരണത കണ്ടെത്തി. 7 ദിവസത്തിനുള്ളിൽ പരിശോധന ശുപാർശ ചെയ്യപ്പെടുന്നു.",
       efficiency:
-        "لتحسين كفاءة المعدات: 1) تقليل وقت التوقف عن طريق تحسين الجدولة، 2) ضمان التزييت المنتظم لتجميعات المحمل، 3) مراقبة اتجاهات درجة الحرارة والحفاظ على أنظمة التبريد، 4) تحديث معاملات المعايرة شهريا.",
+        "കാര്യക്ഷമത മെച്ചപ്പെടുത്തുന്നതിന്: നിഷ്ക്രിയ സമയം 15% കുറയ്ക്കുക, താപനില സജ്ജീകരണങ്ങൾ最適化 ചെയ്യുക, കൂടാതെ പ്രതിരോധക പരിപാലനം സാപ്താഹികമായി നടത്തുക.",
       default:
-        "هذا سؤال رائع عن صيانة وتشخيص المعدات. بناء على بيانات النظام الحالية، يمكنني تقديم رؤى محددة عن حالة معداتك والتنبؤ باحتياجات الصيانة وتوصية استراتيجيات التحسين. ما الجانب المحدد الذي تود استكشافه؟",
+        "പരിപാലനത്തെ കുറിച്ച് ഏതെങ്കിലും ചോദ്യത്തിന് സാഹായ്യം ചെയ്യാൻ ഞാൻ ഇവിടെയുണ്ട്. ഉപകരണ നിലവാരം, ഷെഡ്യൂലിംഗ്, അല്ലെങ്കിൽ ഒപ്റ്റിമൈസേഷൻ നുറുങ്ങുകൾ സ്വതന്ത്രമായി ചോദിക്കുക.",
     },
   },
-  ja: {
-    title: "AIメンテナンスアシスタント",
-    description: "機器、メンテナンススケジュール、および予測インサイトについて質問してください",
-    greeting:
-      "こんにちは！AIメンテナンスアシスタントです。機器の診断、メンテナンススケジューリング、予測分析をお手伝いできます。何をお知りになりたいですか？",
-    suggestedQuestions: "提案される質問:",
-    placeholder: "機器のステータス、メンテナンス、または予測について質問してください...",
-    thinking: "考え中...",
-    sampleQuestions: [
-      "現在の機器の健全性状態はどうですか？",
-      "次の定期メンテナンスはいつですか？",
-      "最近検出された異常を説明してください",
-      "機器の効率を改善するにはどうすればよいですか？",
+  mr: {
+    title: "देखभाल सहायक",
+    description: "मशीन देखभाल के बारे में हमारे AI सहायक से बात करें",
+    greeting: "नमस्ते! आज मैं आपकी मशीन देखभाल में कैसे मदद कर सकता हूँ?",
+    placeholder: "आपला संदेश टाइप करा...",
+    questions: [
+      "माझ्या मशीनची वर्तमान आरोग्य स्थिती काय आहे?",
+      "मी पुढील देखभाल केव्हा शेड्यूल करायला हवी?",
+      "अलीकडील उपकरण विसंगती विश्लेषण करा",
+      "मी उपकरण कार्यक्षमता कशी सुधारू शकतो?",
     ],
     responses: {
-      health:
-        "現在のシステムの健全性は94％です。すべての主要コンポーネントが正常なパラメータ内で動作しています。モーターAとBは最適に動作しており、ベアリングアセンブリは温度がわずかに上昇しており、監視が必要です。",
-      maintenance:
-        "予測分析に基づいて、次の定期メンテナンスはギアボックスで3日以内に期限切れになります。ドライブベルトは同じサービスウィンドウ中に検査する必要があります。次の利用可能なメンテナンスウィンドウ中にこれをスケジュールすることをお勧めします。",
-      anomaly:
-        "最近検出された異常は、本日14:32のギアボックスアセンブリの一時的な振動スパイクでした。これは、将来の故障を示す可能性が2％の軽微な異常として分類されています。継続的な監視をお勧めします。",
+      health: "वर्तमान आरोग्य स्थिती: सर्व मशीनें 98% कार्यक्षमतेसह सामान्यपणे चालू आहेत.",
+      maintenance: "पुढील शेड्यूल केलेली देखभाल: उपकरण A साठी 15 दिवस, उपकरण B साठी 8 दिवस.",
+      anomaly: "मोटर C मध्ये लहान कंपन विसंगती सापडली. 7 दिवसांत तपासणी शिफारस केली जाते.",
       efficiency:
-        "機器の効率を改善するには：1）スケジューリングを最適化してアイドルタイムを削減、2）ベアリングアセンブリの定期的な潤滑を確保、3）温度トレンドを監視して冷却システムを維持、4）毎月キャリブレーションパラメータを更新します。",
+        "कार्यक्षमता सुधारण्यासाठी: निष्क्रिय वेळ 15% कमी करा, तापमान सेटिंग्ज अनुकूल करा, आणि साप्ताहिक प्रतिबंधक देखभाल करा.",
       default:
-        "これは機器のメンテナンスと診断に関する素晴らしい質問です。現在のデータに基づいて、機器のステータスについての具体的なインサイト、メンテナンスニーズの予測、最適化戦略の推奨を提供できます。探索したい具体的な側面は何ですか？",
+        "देखभालीच्या कोणत्याही प्रश्नांमध्ये मदत करण्यासाठी मी येथे आहे। उपकरण स्थिती, शेड्यूलिंग किंवा ऑप्टिमायজेशन टिप्स विषयी निःसंकोच विचारा.",
     },
   },
-  pt: {
-    title: "Assistente de Manutenção com IA",
-    description: "Faça perguntas sobre seu equipamento, cronogramas de manutenção e insights preditivos",
-    greeting:
-      "Olá! Sou seu Assistente de Manutenção com IA. Posso ajudá-lo com diagnóstico de equipamentos, planejamento de manutenção e insights preditivos. O que você gostaria de saber?",
-    suggestedQuestions: "Perguntas sugeridas:",
-    placeholder: "Pergunte sobre status do equipamento, manutenção ou previsões...",
-    thinking: "Pensando...",
-    sampleQuestions: [
-      "Qual é o status atual de saúde do equipamento?",
-      "Quando está agendada a próxima manutenção?",
-      "Explique a anomalia detectada recentemente",
-      "Como posso melhorar a eficiência do equipamento?",
+  gu: {
+    title: "જાળવણી સહાયક",
+    description: "મશીન જાળવણી વિશે આપણા AI સહાયક સાથે ચેટ કરો",
+    greeting: "નમસ્તે! આજ હું તમારી મશીન જાળવણીમાં કેવી રીતે મદદ કરી શકું?",
+    placeholder: "તમારો સંદેશ ટાઇપ કરો...",
+    questions: [
+      "મારી મશીનોની વર્તમાન સ્વાસ્થ્ય સ્થિતિ શું છે?",
+      "મેં આગળની જાળવણી ક્યારે શેડ્યુલ કરવી જોઈએ?",
+      "તાજેતરની સાધન વિસંગતિઓનું વિશ્લેષણ કરો",
+      "હું સાધન કાર્યક્ષમતા કેવી રીતે સુધારી શકું?",
     ],
     responses: {
-      health:
-        "O status atual de saúde do sistema está em 94%. Todos os componentes principais estão operando dentro dos parâmetros normais. Os motores A e B estão funcionando de forma otimizada, e o conjunto de rolamentos mostra um aumento leve de temperatura que deve ser monitorado.",
-      maintenance:
-        "Com base na análise preditiva, a próxima manutenção agendada vence em 3 dias para a Caixa de Engrenagens. A Correia de Transmissão deve ser inspecionada durante a mesma janela de serviço. Recomendo agendar isto durante a próxima janela de manutenção disponível.",
-      anomaly:
-        "A anomalia detectada recentemente foi um pico temporário de vibração no conjunto da Caixa de Engrenagens às 14h32 de hoje. Isto foi classificado como uma anomalia menor com 2% de probabilidade de indicar uma falha futura. É recomendado monitoramento contínuo.",
+      health: "વર્તમાન સ્વાસ્થ્ય સ્થિતિ: બધી મશીનો 98% કાર્યક્ષમતા સાથે સામાન્યપણે કામ કરી રહી છે.",
+      maintenance: "આગળની અનુસૂચિત જાળવણી: સાધન A માટે 15 દિવસ, સાધન B માટે 8 દિવસ.",
+      anomaly: "મોટર C માં નાનો કંપન વિસંગતિ મળી આવ્યો. 7 દિવસમાં તપાસ સુઝાવવામાં આવે છે.",
       efficiency:
-        "Para melhorar a eficiência do equipamento: 1) Reduzir o tempo de inatividade otimizando a programação, 2) Garantir lubrificação regular dos conjuntos de rolamentos, 3) Monitorar tendências de temperatura e manter sistemas de resfriamento, 4) Atualizar parâmetros de calibração mensalmente.",
+        "કાર્યક્ષમતા સુધારવા માટે: નિષ્ક્રિય સમય 15% ઘટાડો, તાપમાન સેટિંગ્સ ઑપ્ટિમાઇজ કરો, અને સાપ્તાહિક નિવારક જાળવણી કરો.",
+      default: "જાળવણી વિશે કોઈ પણ પ્રશ્નમાં મદદ કરવા હું અહીં છું. સાધન સ્થિતિ, શેડ્યુલિંગ, અથવા ઑપ્ટિમાઇઝેશન ટીપ્સ વિશે સ્વતંત્રતાથી પૂછો.",
+    },
+  },
+  pa: {
+    title: "ਮਾਲੀ ਸਹਾਇਕ",
+    description: "ਮਸ਼ੀਨ ਮਾਲੀ ਬਾਰੇ ਸਾਡੇ AI ਸਹਾਇਕ ਨਾਲ ਗੱਲ ਕਰੋ",
+    greeting: "ਨਮਸਕਾਰ! ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਮਸ਼ੀਨ ਦੀ ਮਾਲੀ ਵਿੱਚ ਕਿਵੇਂ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
+    placeholder: "ਆਪਣਾ ਸੁਨੇਹਾ ਲਿਖੋ...",
+    questions: [
+      "ਮੇਰੀਆਂ ਮਸ਼ੀਨਾਂ ਦੀ ਮੌਜੂਦਾ ਸਲਾਮਤੀ ਦੀ ਸਥਿਤੀ ਕੀ ਹੈ?",
+      "ਮੈਨੂੰ ਅਗਲੀ ਮਾਲੀ ਕਦੋਂ ਸ਼ਿਡਿਊਲ ਕਰਨੀ ਚਾਹੀਦੀ ਹੈ?",
+      "ਹਾਲ ਹੀ ਦੇ ਸਾਧਨ ਅਸੰਗਤੀਆਂ ਦਾ ਵਿਸ਼ਲੇਸ਼ਣ ਕਰੋ",
+      "ਮੈਂ ਸਾਧਨ ਕੁਸ਼ਲਤਾ ਕਿਵੇਂ ਬਿਹਤਰ ਬਣਾ ਸਕਦਾ ਹਾਂ?",
+    ],
+    responses: {
+      health: "ਮੌਜੂਦਾ ਸਲਾਮਤੀ ਦੀ ਸਥਿਤੀ: ਸਾਰੀਆਂ ਮਸ਼ੀਨਾਂ 98% ਕੁਸ਼ਲਤਾ ਨਾਲ ਆਮ ਤੌਰ ਤੇ ਕਾਰ ਰਹੀਆਂ ਹਨ।",
+      maintenance: "ਅਗਲੀ ਨਿਰਧਾਰਿਤ ਮਾਲੀ: ਸਾਧਨ A ਲਈ 15 ਦਿਨ, ਸਾਧਨ B ਲਈ 8 ਦਿਨ।",
+      anomaly: "ਮੋਟਰ C ਵਿੱਚ ਛੋਟੀ ਕੰਪਨ ਅਸੰਗਤੀ ਪਾਈ ਗਈ। 7 ਦਿਨਾਂ ਵਿੱਚ ਜਾਂਚ ਦੀ ਸਿਫਾਰਸ਼ ਕੀਤੀ ਜਾਂਦੀ ਹੈ।",
+      efficiency: "ਕੁਸ਼ਲਤਾ ਬਿਹਤਰ ਬਣਾਉਣ ਲਈ: ਬੇਕਾਰ ਸਮੇਂ ਨੂੰ 15% ਘਟਾਓ, ਤਾਪਮਾਨ ਸੈਟਿੰਗਜ਼ ਨੂੰ ਅਨੁਕੂਲ ਕਰੋ, ਅਤੇ ਸਾਪ੍ਤਾਹਿਕ ਰੋਕਥਾਮ ਮਾਲੀ ਕਰੋ।",
+      default: "ਮਾਲੀ ਬਾਰੇ ਕਿਸੇ ਵੀ ਸਵਾਲ ਵਿੱਚ ਮਦਦ ਕਰਨ ਲਈ ਮੈਂ ਇਥੇ ਹਾਂ। ਸਾਧਨ ਸਥਿਤੀ, ਸ਼ਿਡਿਊਲਿੰਗ, ਜਾਂ ਅਨੁਕੂਲਨ ਸੁਝਾਅ ਬਾਰੇ ਬੇਰੋਕ ਪੁੱਛੋ।",
+    },
+  },
+  ur: {
+    title: "دیکھ بھال معاون",
+    description: "مشین کی دیکھ بھال کے بارے میں ہمارے AI معاون سے بات کریں",
+    greeting: "السلام علیکم! آج میں آپ کی مشین کی دیکھ بھال میں کیسے مدد کر سکتا ہوں؟",
+    placeholder: "اپنا پیغام لکھیں...",
+    questions: [
+      "میری مشینوں کی موجودہ صحت کی حالت کیا ہے؟",
+      "مجھے اگلی دیکھ بھال کب شیڈول کرنی چاہیے؟",
+      "حال ہی کے آلات کی خرابیوں کا تجزیہ کریں",
+      "میں آلات کی کارکردگی کو کیسے بہتر بنا سکتا ہوں؟",
+    ],
+    responses: {
+      health: "موجودہ صحت کی حالت: تمام مشینیں 98٪ کارکردگی کے ساتھ معمول کے مطابق کام کر رہی ہیں۔",
+      maintenance: "اگلی مقررہ دیکھ بھال: آلہ A کے لیے 15 دن، آلہ B کے لیے 8 دن۔",
+      anomaly: "موٹر C میں معمولی کمپن میں خرابی پائی گئی۔ 7 دنوں میں معائنہ کی سفارش کی جاتی ہے۔",
+      efficiency:
+        "کارکردگی بہتر بنانے کے لیے: بیکار وقت کو 15٪ کم کریں، درجہ حرارت کی ترتیبات کو بہتر بنائیں، اور ہفتہ وار روک تھام دیکھ بھال کریں۔",
       default:
-        "Esta é uma ótima pergunta sobre manutenção e diagnóstico de equipamentos. Com base em nossos dados atuais, posso fornecer insights específicos sobre o status do seu equipamento, prever necessidades de manutenção e recomendar estratégias de otimização. Qual aspecto específico você gostaria de explorar?",
+        "دیکھ بھال کے بارے میں کسی بھی سوال میں مدد کے لیے میں یہاں ہوں۔ آلات کی حالت، شیڈولنگ، یا بہتری کے تجاویز کے بارے میں بلا جھجھک پوچھیں۔",
+    },
+  },
+  bn: {
+    title: "রক্ষণাবেক্ষণ সহায়ক",
+    description: "মেশিন রক্ষণাবেক্ষণ সম্পর্কে আমাদের AI সহায়কের সাথে চ্যাট করুন",
+    greeting: "নমস্কার! আজ আপনার মেশিন রক্ষণাবেক্ষণে আমি কীভাবে সাহায্য করতে পারি?",
+    placeholder: "আপনার বার্তা টাইপ করুন...",
+    questions: [
+      "আমার মেশিনগুলির বর্তমান স্বাস্থ্য অবস্থা কী?",
+      "আমি পরবর্তী রক্ষণাবেক্ষণ কখন নির্ধারণ করব?",
+      "সাম্প্রতিক সরঞ্জাম অস্বাভাবিকতা বিশ্লেষণ করুন",
+      "আমি সরঞ্জাম দক্ষতা কীভাবে উন্নত করতে পারি?",
+    ],
+    responses: {
+      health: "বর্তমান স্বাস্থ্য অবস্থা: সমস্ত মেশিন 98% দক্ষতার সাথে স্বাভাবিকভাবে চলছে।",
+      maintenance: "পরবর্তী নির্ধারিত রক্ষণাবেক্ষণ: সরঞ্জাম A এর জন্য 15 দিন, সরঞ্জাম B এর জন্য 8 দিন।",
+      anomaly: "মোটর C তে ছোট কম্পন অস্বাভাবিকতা পাওয়া গেছে। 7 দিনের মধ্যে পরিদর্শনের সুপারিশ করা হয়।",
+      efficiency:
+        "দক্ষতা উন্নত করতে: নিষ্ক্রিয় সময় 15% হ্রাস করুন, তাপমাত্রা সেটিংস অপ্টিমাইজ করুন, এবং সাপ্তাহিক প্রতিরোধমূলক রক্ষণাবেক্ষণ করুন।",
+      default:
+        "রক্ষণাবেক্ষণ সম্পর্কে যে কোনও প্রশ্নে সাহায্য করতে আমি এখানে আছি। সরঞ্জাম অবস্থা, সময়সূচী, বা অপ্টিমাইজেশন টিপস সম্পর্কে নির্দ্বিধায় জিজ্ঞাসা করুন।",
+    },
+  },
+  od: {
+    title: "ରକ୍ଷଣାବେକ୍ଷଣ ସହାୟକ",
+    description: "ମେସିନ ରକ୍ଷଣାବେକ୍ଷଣ ବିଷୟରେ ଆମର AI ସହାୟକ ସହ ଚ୍ୟାଟ କରନ୍ତୁ",
+    greeting: "ନମସ୍କାର! ଆଜ ଆପଣ ଙ୍କ ମେସିନ ରକ୍ଷଣାବେକ୍ଷଣରେ ମୁଁ କିଛି ସାହାଯ୍ୟ କରିବାକୁ ପାରୁ?",
+    placeholder: "ଆପଣ ଙ୍କ ବାର୍ତ୍ତା ଟାଇପ କରନ୍ତୁ...",
+    questions: [
+      "ମୋ ମେସିନଗୁଡିକର ବର୍ତ୍ତମାନ ସ୍ଵାସ୍ଥ୍ୟ ସ୍ଥିତି ଅଛି?",
+      "ମୁଁ ପରବର୍ତ୍ତୀ ରକ୍ଷଣାବେକ୍ଷଣ କେବେ ସୂଚିତ କରିବି?",
+      "ସାମ୍ପ୍ରତିକ ଯନ୍ତ୍ରପାତି ବିସଙ୍ଗତିଗୁଡିକ ବିଶ୍ଳେଷଣ କରନ୍ତୁ",
+      "ମୁଁ ଯନ୍ତ୍ରପାତି ଦକ୍ଷତା କିଭାବେ ଉନ୍ନତ କରିବାକୁ ପାରୁ?",
+    ],
+    responses: {
+      health: "ବର୍ତ୍ତମାନ ସ୍ଵାସ୍ଥ୍ୟ ସ୍ଥିତି: ସମସ୍ତ ମେସିନ 98% ଦକ୍ଷତା ସହିତ ସାଧାରଣଭାବେ ଚୋପଟି ଅଛି।",
+      maintenance: "ପରବର୍ତ୍ତୀ ସୂଚିତ ରକ୍ଷଣାବେକ୍ଷଣ: ଯନ୍ତ୍ରପାତି A ପାଇଁ 15 ଦିନ, ଯନ୍ତ୍ରପାତି B ପାଇଁ 8 ଦିନ।",
+      anomaly: "ମୋଟର C ରେ ଛୋଟ କମ୍ପନ ବିସଙ୍ଗତି ମିଳିଥିଲା। 7 ଦିନ ମଧ୍ୟରେ ପରିଦର୍ଶନ ସୁପାରିଶ କରାଯାଏ।",
+      efficiency: "ଦକ୍ଷତା ଉନ୍ନତ କରିବାକୁ: ନିଷ୍କ୍ରିୟ ସମୟ 15% ହ୍ରାସ କରନ୍ତୁ, ତାପମାତ୍ରା ସେଟିଂସ ଅପ୍ଟିମାଇଜ କରନ୍ତୁ, ଏବଂ ସାପ୍ତାହିକ ପ୍ରତିରୋଧକ ରକ୍ଷଣାବେକ୍ଷଣ କରନ୍ତୁ।",
+      default:
+        "ରକ୍ଷଣାବେକ୍ଷଣ ବିଷୟରେ ଯେକୌଣସି ପ୍ରଶ୍ନରେ ସାହାଯ୍ୟ କରିବାକୁ ମୁଁ ଏଠାରେ ଅଛି। ଯନ୍ତ୍ରପାତି ସ୍ଥିତି, ସୂଚିତ, କିମ୍ବା ଅପ୍ଟିମାଇଜେସନ୍ ଟିପ୍ସ ବିଷୟରେ ମୁକ୍ତଭାବେ ପଚାରନ୍ତୁ।",
+    },
+  },
+  as: {
+    title: "ৰক্ষণাবেক্ষণ সহায়ক",
+    description: "মেশিন ৰক্ষণাবেক্ষণ সম্পর্কে আমাদের AI সহায়কের সাথে চ্যাট করুন",
+    greeting: "নমস্কাৰ! আজ আপোনাৰ মেশিন ৰক্ষণাবেক্ষণত মই কেনেকৈ সহায়তা কৰিব পাৰো?",
+    placeholder: "আপোনাৰ বাৰ্তা টাইপ কৰক...",
+    questions: [
+      "মোৰ মেশিনসমূহৰ বৰ্তমান স্বাস্থ্য অৱস্থা কি?",
+      "মই পৰৱৰ্তী ৰক্ষণাবেক্ষণ কেতিয়া নিৰ্ধাৰণ কৰিব?",
+      "সাম্প্রতিক সমগ্র অস্বাভাৱিকতা বিশ্লেষণ কৰক",
+      "মই সমগ্র দক্ষতা কেনেকৈ উন্নত কৰিব পাৰো?",
+    ],
+    responses: {
+      health: "বৰ্তমান স্বাস্থ্য অৱস্থা: সকল মেশিন 98% দক্ষতাৰে সাধাৰণভাৱে চলিছে।",
+      maintenance: "পৰৱৰ্তী নিৰ্ধাৰিত ৰক্ষণাবেক্ষণ: সমগ্র A ৰ বাবে 15 দিন, সমগ্র B ৰ বাবে 8 দিন।",
+      anomaly: "মোটর C ত সৰু কম্পন অস্বাভাৱিকতা পোৱা গৈছে। 7 দিনৰ ভিতৰত পৰিদৰ্শনৰ পৰামর্শ দিয়া হৈছে।",
+      efficiency:
+        "দক্ষতা উন্নত কৰিবলৈ: নিষ্ক্রিয় সময় 15% হ্রাস কৰক, তাপমাত্রা সেটিংস অনুকূল কৰক, আৰু সাপ্তাহিক প্রতিৰোধমূলক ৰক্ষণাবেক্ষণ কৰক।",
+      default:
+        "ৰক্ষণাবেক্ষণ সম্পর্কে যিকোনো প্রশ্নত সহায়তা কৰিবলৈ মই ইয়াত আছো। সমগ্র অৱস্থা, সময়সূচী, বা অপটিমাইজেশন টিপস সম্পর্কে নিঃসংকোচে প্রশ্ন কৰক।",
     },
   },
 }
 
-export default function Chatbot() {
-  const [messages, setMessages] = useState<Message[]>([])
+export default function ChatbotPage() {
+  const [currentLanguage, setCurrentLanguage] = useState("en")
+  const [messages, setMessages] = useState([{ id: 1, text: languages.en.greeting, sender: "bot" }])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [language, setLanguage] = useState<Language>("en")
-  const [showLanguageMenu, setShowLanguageMenu] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const t = translations[language]
-  const languages: { code: Language; name: string }[] = [
-    { code: "en", name: "English" },
-    { code: "es", name: "Español" },
-    { code: "fr", name: "Français" },
-    { code: "de", name: "Deutsch" },
-    { code: "zh", name: "中文" },
-    { code: "ar", name: "العربية" },
-    { code: "ja", name: "日本語" },
-    { code: "pt", name: "Português" },
-  ]
+  const t = languages[currentLanguage]
 
-  useEffect(() => {
-    setMessages([
-      {
-        id: "1",
-        type: "assistant",
-        content: t.greeting,
-        timestamp: new Date(),
-      },
-    ])
-  }, [language])
+  const handleSendMessage = (message) => {
+    if (!message.trim()) return
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  const handleSendMessage = async (userMessage: string) => {
-    if (!userMessage.trim()) return
-
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      type: "user",
-      content: userMessage,
-      timestamp: new Date(),
-    }
-
-    setMessages((prev) => [...prev, userMsg])
+    setMessages((prev) => [...prev, { id: prev.length + 1, text: message, sender: "user" }])
     setInput("")
     setIsLoading(true)
 
     setTimeout(() => {
-      let response = t.responses.default
-
-      const lowerMessage = userMessage.toLowerCase()
-      if (
-        lowerMessage.includes("health") ||
-        lowerMessage.includes("status") ||
-        lowerMessage.includes("salud") ||
-        lowerMessage.includes("santé") ||
-        lowerMessage.includes("santé") ||
-        lowerMessage.includes("健康") ||
-        lowerMessage.includes("صحة") ||
-        lowerMessage.includes("健全")
-      ) {
-        response = t.responses.health
-      } else if (
-        lowerMessage.includes("maintenance") ||
-        lowerMessage.includes("schedule") ||
-        lowerMessage.includes("mantenimiento") ||
-        lowerMessage.includes("maintenance") ||
-        lowerMessage.includes("次") ||
-        lowerMessage.includes("الصيانة")
-      ) {
-        response = t.responses.maintenance
-      } else if (
-        lowerMessage.includes("anomaly") ||
-        lowerMessage.includes("anomalía") ||
-        lowerMessage.includes("anomalie") ||
-        lowerMessage.includes("异常") ||
-        lowerMessage.includes("شذوذ") ||
-        lowerMessage.includes("異常")
-      ) {
-        response = t.responses.anomaly
-      } else if (
-        lowerMessage.includes("efficiency") ||
-        lowerMessage.includes("improve") ||
-        lowerMessage.includes("eficiencia") ||
-        lowerMessage.includes("améliorer") ||
-        lowerMessage.includes("改進") ||
-        lowerMessage.includes("كفاءة")
-      ) {
-        response = t.responses.efficiency
-      }
-
-      const assistantMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        type: "assistant",
-        content: response,
-        timestamp: new Date(),
-      }
-
-      setMessages((prev) => [...prev, assistantMsg])
+      const responses = Object.values(t.responses)
+      const randomResponse = responses[Math.floor(Math.random() * responses.length)]
+      setMessages((prev) => [...prev, { id: prev.length + 1, text: randomResponse, sender: "bot" }])
       setIsLoading(false)
-    }, 1000)
+    }, 1500)
+  }
+
+  const handleLanguageChange = (lang) => {
+    setCurrentLanguage(lang)
+    setMessages([{ id: 1, text: languages[lang].greeting, sender: "bot" }])
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
-      <main className="flex-1 pt-20 px-4 sm:px-6 lg:px-8 pb-6">
-        <div className="max-w-4xl mx-auto h-full flex flex-col">
-          <div className="mb-6 flex items-start justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-sidebar-foreground mb-2">{t.title}</h1>
-              <p className="text-muted-foreground">{t.description}</p>
-            </div>
-            <div className="relative">
-              <button
-                onClick={() => setShowLanguageMenu(!showLanguageMenu)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border hover:border-primary/50 transition-colors"
-              >
-                <Globe className="w-4 h-4" />
-                <span className="text-sm font-medium">{language.toUpperCase()}</span>
-              </button>
-              {showLanguageMenu && (
-                <div className="absolute right-0 mt-2 w-40 bg-card border border-border rounded-lg shadow-lg z-10">
-                  {languages.map((lang) => (
-                    <button
-                      key={lang.code}
-                      onClick={() => {
-                        setLanguage(lang.code)
-                        setShowLanguageMenu(false)
-                      }}
-                      className={`w-full text-left px-4 py-2 hover:bg-muted/50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
-                        language === lang.code ? "bg-primary/20 text-primary" : "text-foreground"
-                      }`}
-                    >
-                      {lang.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+    <main className="min-h-screen bg-background p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">{t.title}</h1>
+            <p className="text-muted-foreground">{t.description}</p>
           </div>
+          <div className="flex items-center gap-2">
+            <Globe className="w-5 h-5 text-primary" />
+            <select
+              value={currentLanguage}
+              onChange={(e) => handleLanguageChange(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-secondary text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="en">English</option>
+              <option value="hi">हिन्दी (Hindi)</option>
+              <option value="ta">தமிழ் (Tamil)</option>
+              <option value="te">తెలుగు (Telugu)</option>
+              <option value="kn">ಕನ್ನಡ (Kannada)</option>
+              <option value="ml">മലയാളം (Malayalam)</option>
+              <option value="mr">मराठी (Marathi)</option>
+              <option value="gu">ગુજરાતી (Gujarati)</option>
+              <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+              <option value="ur">اردو (Urdu)</option>
+              <option value="bn">বাংলা (Bengali)</option>
+              <option value="od">ଓଡିଆ (Odia)</option>
+              <option value="as">অসমীয়া (Assamese)</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+              <option value="de">Deutsch</option>
+              <option value="zh">中文 (Chinese)</option>
+              <option value="ar">العربية (Arabic)</option>
+              <option value="ja">日本語 (Japanese)</option>
+              <option value="pt">Português</option>
+            </select>
+          </div>
+        </div>
 
-          {/* Messages Container */}
-          <div className="flex-1 bg-card/50 border border-border rounded-xl p-6 mb-4 overflow-y-auto flex flex-col gap-4 min-h-96">
-            {messages.map((message) => (
-              <div key={message.id} className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}>
+        {/* Chat Container */}
+        <div className="bg-card rounded-lg border border-border shadow-lg overflow-hidden flex flex-col h-[600px]">
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-card to-secondary">
+            {messages.map((msg) => (
+              <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-xs lg:max-w-md xl:max-w-lg px-4 py-3 rounded-lg ${
-                    message.type === "user"
-                      ? "bg-primary/20 text-primary-foreground border border-primary/30"
-                      : "bg-muted/50 text-foreground border border-border"
+                  className={`max-w-xs px-4 py-3 rounded-lg ${
+                    msg.sender === "user"
+                      ? "bg-primary text-primary-foreground rounded-br-none"
+                      : "bg-muted text-foreground rounded-bl-none"
                   }`}
                 >
-                  <p className="text-sm">{message.content}</p>
-                  <span className="text-xs text-muted-foreground mt-2 block">
-                    {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </span>
+                  {msg.text}
                 </div>
               </div>
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-muted/50 text-foreground border border-border px-4 py-3 rounded-lg flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">{t.thinking}</span>
+                <div className="bg-muted text-foreground px-4 py-3 rounded-lg rounded-bl-none">
+                  <Loader2 className="w-5 h-5 animate-spin" />
                 </div>
               </div>
             )}
-            <div ref={messagesEndRef} />
           </div>
 
-          {/* Suggested Questions */}
+          {/* Quick Questions */}
           {messages.length === 1 && (
-            <div className="mb-4">
-              <p className="text-sm text-muted-foreground mb-3">{t.suggestedQuestions}</p>
+            <div className="px-6 py-4 bg-card border-t border-border">
+              <p className="text-sm text-muted-foreground mb-3">💡 {t.placeholder}</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {t.sampleQuestions.map((question: string, idx: number) => (
+                {t.questions.map((question, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSendMessage(question)}
-                    className="text-left p-3 rounded-lg bg-card border border-border hover:border-primary/50 hover:bg-card/80 transition-all text-sm text-muted-foreground hover:text-foreground"
+                    className="text-left text-sm px-3 py-2 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground transition-colors"
                   >
                     {question}
                   </button>
@@ -427,7 +387,7 @@ export default function Chatbot() {
           )}
 
           {/* Input Area */}
-          <div className="flex gap-3">
+          <div className="p-6 bg-card border-t border-border flex gap-3">
             <input
               type="text"
               value={input}
@@ -438,7 +398,7 @@ export default function Chatbot() {
                 }
               }}
               placeholder={t.placeholder}
-              className="flex-1 px-4 py-3 rounded-lg bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              className="flex-1 px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               disabled={isLoading}
             />
             <button
@@ -450,7 +410,7 @@ export default function Chatbot() {
             </button>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   )
 }
